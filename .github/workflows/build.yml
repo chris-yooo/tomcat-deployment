@@ -1,0 +1,33 @@
+name: Build
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Set up JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: 19
+      - name: Cache Maven packages
+        uses: actions/cache@v1
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Build and analyze
+        working-directory: backend
+        run: mvn -B package
+      - name: Deploy
+        env:
+          TOMCAT_PUBLIC_ADDRESS: ${{ secrets.TOMCAT_PUBLIC_ADDRESS }}
+          TOMCAT_USER: ${{ secrets.TOMCAT_USER }}
+          TOMCAT_PASSWORD: ${{ secrets.TOMCAT_PASSWORD }}
+        working-directory: backend/target
+        run: curl --verbose --user $TOMCAT_USER:$TOMCAT_PASSWORD --upload-file backend-0.0.1-SNAPSHOT.war "$TOMCAT_PUBLIC_ADDRESS/manager/text/deploy?path=/myapp&update=true"
